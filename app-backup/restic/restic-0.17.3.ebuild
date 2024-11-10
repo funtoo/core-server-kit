@@ -363,8 +363,8 @@ EGO_SUM=(
 
 DESCRIPTION="A backup program that is fast, efficient and secure"
 HOMEPAGE="https://restic.github.io/"
-SRC_URI="https://github.com/restic/restic/tarball/90bfc45cf2532a8f772c604a0e957e9e799b8a16 -> restic-0.17.2-90bfc45.tar.gz
-https://direct.funtoo.org/45/b9/d1/45b9d1c7f55ac09d4245dbf08ad27a90659882e322f12b27d46229fd588558e2a12e6fffd50e0361f6f809bacac92b5bb94fbad4930641a3dc9cf50ccdaa8465 -> restic-0.17.2-funtoo-go-bundle-dabbce6487c9ea6d9ccb13b297b4273d713b23388571f8bb222155f21674e4df1c9b1dfd084b8f9617f8018fdacf1ec9d2e50108d09f691247f1d94a6bbd1caa.tar.gz"
+SRC_URI="https://github.com/restic/restic/tarball/39a6124be558622b0473175af5f8062f3bdca488 -> restic-0.17.3-39a6124.tar.gz
+https://direct.funtoo.org/db/11/62/db1162d768c2105227c683358c6c64da20a5fb7fe62658b0f402466f3b42082f49608a48e7d176a3d57bc2bf1f7ab2755420cc9e0910e00eeeaf8c2cd4a639f4 -> restic-0.17.3-funtoo-go-bundle-dabbce6487c9ea6d9ccb13b297b4273d713b23388571f8bb222155f21674e4df1c9b1dfd084b8f9617f8018fdacf1ec9d2e50108d09f691247f1d94a6bbd1caa.tar.gz"
 
 LICENSE="Apache-2.0 BSD BSD-2 LGPL-3-with-linking-exception MIT"
 SLOT="0"
@@ -378,7 +378,7 @@ post_src_unpack() {
 }
 
 src_compile() {
-	go build -ldflags '-X main.version=0.17.2' \
+	go build -ldflags '-X main.version=0.17.3' \
 		-asmflags "-trimpath=${S}" \
 		-gcflags "-trimpath=${S}" \
 		-o restic ./cmd/restic
