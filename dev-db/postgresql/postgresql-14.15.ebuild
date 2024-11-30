@@ -15,14 +15,17 @@ DESCRIPTION="PostgreSQL RDBMS"
 HOMEPAGE="https://www.postgresql.org/"
 SRC_URI="https://ftp.postgresql.org/pub/source/v14.15/postgresql-14.15.tar.bz2 -> postgresql-14.15.tar.bz2"
 
-IUSE="debug doc icu kerberos ldap llvm lz4 nls pam perl python +readline selinux +server ssl static-libs tcl uuid xml zlib"
+IUSE="debug doc icu kerberos ldap llvm lz4 nls pam perl python +readline selinux +server ssl static-libs tcl uuid zlib"
 
 REQUIRED_USE="python? ( ${PYTHON_REQUIRED_USE} )"
 
+# libxml2 and libxslt are needed for man page generation, which is sometimes enabled, and thus we will make xml always active
 CDEPEND="
 >=app-eselect/eselect-postgresql-2.0
 sys-apps/less
 virtual/libintl
+dev-libs/libxml2
+dev-libs/libxslt
 icu? ( dev-libs/icu:= )
 kerberos? ( virtual/krb5 )
 ldap? ( net-nds/openldap:= )
@@ -37,7 +40,6 @@ python? ( ${PYTHON_DEPS} )
 readline? ( sys-libs/readline:0= )
 ssl? ( >=dev-libs/openssl-0.9.6-r1:0= )
 tcl? ( >=dev-lang/tcl-8:0= )
-xml? ( dev-libs/libxml2 dev-libs/libxslt )
 zlib? ( sys-libs/zlib )
 "
 
@@ -65,8 +67,8 @@ uuid? (
 DEPEND="${CDEPEND}
 sys-devel/bison
 sys-devel/flex
+virtual/pkgconfig
 nls? ( sys-devel/gettext )
-xml? ( virtual/pkgconfig )
 "
 
 RDEPEND="${CDEPEND}
@@ -142,8 +144,8 @@ src_configure() {
 		--without-systemd
 		$(use_with tcl)
 		${uuid_config}
-		$(use_with xml libxml)
-		$(use_with xml libxslt)
+		--with-libxml
+		--with-libxslt
 		$(use_with zlib)
 		$(use_enable nls)
 	)
@@ -153,18 +155,18 @@ src_configure() {
 src_compile() {
 	emake
 	emake -C contrib
+	# Some sources have docs shipped, some don't:
+	if [ ! -d "${S}"/doc/src/man1 ]; then
+		emake -C doc
+	fi
 }
 
 src_install() {
 	emake DESTDIR="${D}" install
 	emake DESTDIR="${D}" install -C contrib
 
-	dodoc README HISTORY
+	dodoc README* HISTORY
 
-	# man pages are already built, but if we have the target make them,
-	# they'll be generated from source before being installed so we
-	# manually install man pages.
-	# We use ${SLOT} instead of doman for postgresql.eselect
 	insinto /usr/share/postgresql-${SLOT}/man/
 	doins -r doc/src/sgml/man{1,3,7}
 	if ! use server; then
