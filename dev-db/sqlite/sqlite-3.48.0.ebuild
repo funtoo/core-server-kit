@@ -2,7 +2,7 @@
 
 EAPI="7"
 
-inherit autotools flag-o-matic multilib-minimal toolchain-funcs
+inherit autotools flag-o-matic toolchain-funcs
 
 # This works, but autogen makes it unnecessary to work out
 # MY_PV="$(printf "%u%02u%02u%02u" $(ver_rs 1- " "))"
@@ -26,22 +26,16 @@ RESTRICT="!test? ( test )"
 
 BDEPEND="app-arch/unzip
 	>=dev-lang/tcl-8.6:0"
-RDEPEND="sys-libs/zlib:0=[${MULTILIB_USEDEP}]
-	icu? ( dev-libs/icu:0=[${MULTILIB_USEDEP}] )
-	readline? ( sys-libs/readline:0=[${MULTILIB_USEDEP}] )
-	tcl? ( dev-lang/tcl:0=[${MULTILIB_USEDEP}] )
+RDEPEND="sys-libs/zlib:0=
+	icu? ( dev-libs/icu:0= )
+	readline? ( sys-libs/readline:0= )
+	tcl? ( dev-lang/tcl:0= )
 	tools? ( dev-lang/tcl:0= )"
 DEPEND="${RDEPEND}
-	test? ( >=dev-lang/tcl-8.6:0[${MULTILIB_USEDEP}] )"
+	test? ( >=dev-lang/tcl-8.6:0 )"
 
 
-src_prepare() {
-	eapply_user
-	eautoreconf
-	multilib_copy_sources
-}
-
-multilib_src_configure() {
+src_configure() {
 	local -x CPPFLAGS="${CPPFLAGS}" CFLAGS="${CFLAGS}"
 	local options=()
 
@@ -178,7 +172,15 @@ multilib_src_configure() {
 		# Support ICU extension.
 		# https://sqlite.org/compile.html#enable_icu
 		append-cppflags -DSQLITE_ENABLE_ICU
-		sed -e "s/^TLIBS = @LIBS@/& -licui18n -licuuc/" -i Makefile.in || die "sed failed"
+		
+		# sqlite needs a little help properly linking to ICU. Its automatic configure code
+		# doesn't seem to work, so we will use pkg-config directly to extract all libraries
+		# to link against: (See ext/icu/README.txt and auto.def for more details)
+
+		for lib in i18n io uc; do
+			pkg-config icu-$lib --libs >> $T/icu_ld.txt || die
+		done
+		options+=( --with-icu-ldflags="$(cat $T/icu_ld.txt | tr '\n' ' ' )" )
 	fi
 
 	# readline USE flag.
@@ -202,7 +204,7 @@ multilib_src_configure() {
 	options+=($(use_enable static-libs static))
 
 	# tcl, test, tools USE flags.
-	if use tcl || use test || { use tools && multilib_is_native_abi; }; then
+	if use tcl || use test || use tools; then
 		options+=(
 			--enable-tcl
 			--with-tcl="${ESYSROOT}/usr/$(get_libdir)"
@@ -222,15 +224,15 @@ multilib_src_configure() {
 	econf "${options[@]}"
 }
 
-multilib_src_compile() {
+src_compile() {
 	emake HAVE_TCL="$(usex tcl 1 "")" TCLLIBDIR="${EPREFIX}/usr/$(get_libdir)/${P}"
 
-	if use tools && multilib_is_native_abi; then
+	if use tools; then
 		emake changeset dbdump dbhash dbtotxt index_usage rbu scrub showdb showjournal showshm showstat4 showwal sqldiff sqlite3_analyzer sqlite3_checker sqlite3_expert sqltclsh
 	fi
 }
 
-multilib_src_test() {
+src_test() {
 	if [[ "${EUID}" -eq 0 ]]; then
 		ewarn "Skipping tests due to root permissions"
 		return
@@ -241,10 +243,10 @@ multilib_src_test() {
 	emake HAVE_TCL="$(usex tcl 1 "")" $(use debug && echo fulltest || echo test)
 }
 
-multilib_src_install() {
+src_install() {
 	emake DESTDIR="${D}" HAVE_TCL="$(usex tcl 1 "")" TCLLIBDIR="${EPREFIX}/usr/$(get_libdir)/${P}" install
 
-	if use tools && multilib_is_native_abi; then
+	if use tools; then
 		install_tool() {
 			if [[ -f ".libs/${1}" ]]; then
 				newbin ".libs/${1}" "${2}"
@@ -273,9 +275,7 @@ multilib_src_install() {
 
 		unset -f install_tool
 	fi
-}
-
-multilib_src_install_all() {
+	
 	find "${ED}" -name "*.la" -delete || die
 
 	doman sqlite3.1
